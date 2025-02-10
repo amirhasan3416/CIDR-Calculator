@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIDR Calculator</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --background-color: #1a1a1a;
+            --text-color: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #333;
+            color: var(--text-color);
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #333;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .result-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #404040;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CIDR Calculator</h1>
+        
+        <div class="input-group">
+            <label for="ipAddress">IP Address:</label>
+            <input type="text" id="ipAddress" placeholder="e.g., 192.168.1.1">
+        </div>
+
+        <div class="input-group">
+            <label for="subnet">Subnet Mask or CIDR:</label>
+            <input type="text" id="subnet" placeholder="e.g., 255.255.255.0 or /24">
+        </div>
+
+        <button onclick="calculateCIDR()">Calculate</button>
+
+        <div class="result" id="result">
+            <div class="result-item" id="networkIp"></div>
+            <div class="result-item" id="broadcastIp"></div>
+            <div class="result-item" id="usableRange"></div>
+            <div class="result-item" id="totalHosts"></div>
+            <div class="result-item" id="cidrNotation"></div>
+            <div class="result-item" id="subnetCount"></div>
+        </div>
+    </div>
+
+    <script>
+        function validateIP(ip) {
+            const octets = ip.split('.').map(Number);
+            return octets.length === 4 && octets.every(n => n >= 0 && n <= 255);
+        }
+
+        function validateSubnet(subnet) {
+            if (subnet.startsWith('/')) {
+                const cidr = parseInt(subnet.slice(1));
+                return cidr >= 0 && cidr <= 32;
+            }
+            return validateIP(subnet);
+        }
+
+        function ipToBinary(ip) {
+            return ip.split('.').map(octet => ('00000000' + parseInt(octet).toString(2)).slice(-8)).join('');
+        }
+
+        function binaryToIp(binary) {
+            return binary.match(/.{8}/g).map(bin => parseInt(bin, 2)).join('.');
+        }
+
+        function subnetToCIDR(subnet) {
+            const maskBinary = ipToBinary(subnet);
+            return maskBinary.split('1').length - 1;
+        }
+
+        function calculateCIDR() {
+            const ipAddress = document.getElementById('ipAddress').value;
+            const subnet = document.getElementById('subnet').value;
+            const resultDiv = document.getElementById('result');
+
+            if (!validateIP(ipAddress) || !validateSubnet(subnet)) {
+                alert('Please enter valid IP address and subnet/CIDR');
+                return;
+            }
+
+            const cidr = subnet.startsWith('/') ? parseInt(subnet.slice(1)) : subnetToCIDR(subnet);
+            const totalHosts = Math.pow(2, 32 - cidr) - 2;
+            const subnetCount = Math.pow(2, cidr - 8 * Math.floor(cidr / 8));
+
+            const ipBinary = ipToBinary(ipAddress);
+            const networkBinary = ipBinary.slice(0, cidr).padEnd(32, '0');
+            const broadcastBinary = ipBinary.slice(0, cidr).padEnd(32, '1');
+
+            const firstIpBinary = networkBinary.slice(0, 31) + '1';
+            const lastIpBinary = broadcastBinary.slice(0, 31) + '0';
+
+            document.getElementById('networkIp').innerHTML = `<strong>Network IP:</strong> ${binaryToIp(networkBinary)}`;
+            document.getElementById('broadcastIp').innerHTML = `<strong>Broadcast IP:</strong> ${binaryToIp(broadcastBinary)}`;
+            document.getElementById('usableRange').innerHTML = `<strong>IP Range:</strong> ${binaryToIp(firstIpBinary)} - ${binaryToIp(lastIpBinary)}`;
+            document.getElementById('totalHosts').innerHTML = `<strong>Valid IP Per Subnet:</strong> ${totalHosts}`;
+            document.getElementById('cidrNotation').innerHTML = `<strong>CIDR Notation:</strong> /${cidr}`;
+            document.getElementById('subnetCount').innerHTML = `<strong>Number of Subnets:</strong> ${subnetCount}`;
+
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
